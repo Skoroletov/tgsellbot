@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Продажа Telegram Stars</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Продажа Telegram Stars</h1>
+        <form id="starsForm">
+            <label for="stars">Количество Stars:</label>
+            <input type="number" id="stars" name="stars" required>
+            
+            <button type="button" class="btn" onclick="nextStep()">Далее</button>
+        </form>
+
+        <form id="userInfoForm" style="display: none;">
+            <label for="full_name">ФИО:</label>
+            <input type="text" id="full_name" name="full_name" required>
+            
+            <label for="phone_number">Номер телефона:</label>
+            <input type="tel" id="phone_number" name="phone_number" required>
+            
+            <button type="button" class="btn" onclick="submitForm()">Отправить</button>
+        </form>
+
+        <p id="statusMessage"></p>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+
+        function nextStep() {
+            document.getElementById('starsForm').style.display = 'none';
+            document.getElementById('userInfoForm').style.display = 'block';
+        }
+
+        async function submitForm() {
+            const stars = document.getElementById('stars').value;
+            const fullName = document.getElementById('full_name').value;
+            const phoneNumber = document.getElementById('phone_number').value;
+
+            // Отправляем данные на сервер
+            const response = await fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    stars: stars,
+                    full_name: fullName,
+                    phone_number: phoneNumber
+                }),
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                document.getElementById('statusMessage').innerText = 'Данные успешно отправлены!';
+
+                // Вызываем метод sendInvoice для списания Stars
+                tg.sendInvoice({
+                    title: "Продажа Telegram Stars",
+                    description: `Вы продаёте ${stars} Stars.`,
+                    payload: "SellStars",  // Уникальный идентификатор платежа
+                    provider_token: " ",  // Токен платежной системы
+                    currency: "XTR",  // Валюта (Telegram Stars используют USD)
+                    prices: [
+                        { label: `${stars} Stars`, amount: stars * 100 }  // Сумма в центах (1 USD = 100 центов)
+                    ],
+                    need_name: true,  // Запросить имя пользователя
+                    need_phone_number: true,  // Запросить номер телефона
+                });
+            } else {
+                document.getElementById('statusMessage').innerText = 'Ошибка при отправке данных.';
+            }
+        }
+
+        // Обработка успешного платежа
+        tg.onEvent('invoiceClosed', (event) => {
+            if (event.status === 'paid') {
+                document.getElementById('statusMessage').innerText = 'Оплата прошла успешно!';
+            } else {
+                document.getElementById('statusMessage').innerText = 'Оплата отменена.';
+            }
+        });
+    </script>
+</body>
+</html>
